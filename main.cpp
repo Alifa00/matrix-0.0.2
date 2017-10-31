@@ -1,287 +1,298 @@
 #include <iostream>
 #include <sstream>
 using namespace std;
-struct mtrx {
-    bool Succes = false;
-    int Row;
-    int Column;
-    float ** Matrix;
-};
-mtrx InitZero(int columns, int rows) {
-    mtrx result;
-    float ** matrix;
-    matrix = new float * [rows];
-    for (int i = 0; i < rows; ++i) {
-        matrix[i] = new float[columns];
-        for (int j = 0; j < columns; ++j) {
-            matrix[i][j] = 0.0f;
-        }
+void destroy(float ** elements,
+             unsigned int ranks) {
+    for (unsigned int i = 0; i < ranks; ++i) {
+        delete[] elements[i];
     }
-    result.Succes = true;
-    result.Matrix = matrix;
-    result.Column = columns;
-    result.Row = rows;
-    return result;
+    delete[] elements;
 }
-float det(mtrx Mat) {
-    float result;
-    if (Mat.Column == Mat.Row) {
-        if (Mat.Column == 1) {
-            result = Mat.Matrix[0][0];
+float ** create_matr(unsigned int graphs,
+                       unsigned int ranks) {
+    float ** matr;
+    matr = new float * [ranks];
+    for (unsigned int i = 0; i < ranks; ++i) {
+        matr[i] = new float[graphs];
+        for (unsigned int j = 0; j < graphs; ++j) {
+            matr[i][j] = 0.0f;
         }
-        else if (Mat.Column == 2) {
-            result = Mat.Matrix[0][0] * Mat.Matrix[1][1] - Mat.Matrix[0][1] * Mat.Matrix[1][0];
-        }
-        else {
-            for (int j = 0; j < Mat.Column; j++) {
-                mtrx minor = InitZero(Mat.Row - 1, Mat.Column - 1);
-                for (int y = 0; y < Mat.Row - 1; ++y) {
-                    int k = 0;
-                    for (int x = 0; x < Mat.Column - 1; ++x) {
-                        if (x == j) {
-                            k = 1;
-                        }
-                        minor.Matrix[y][x] = Mat.Matrix[y + 1][x + k];
-                    }
-                }
-                switch (j % 2) {
-                    case 0:
-                        result += Mat.Matrix[0][j] * det(minor);
-                        break;
-                    case 1:
-                        result += (-Mat.Matrix[0][j]) * det(minor);
-                        break;
-                }
-            }
-        }
-        return result;
     }
-    else {
+    return matr;
+}
+float det(float ** matr,
+          unsigned int graphs,
+          unsigned int ranks) {
+    if (graphs != ranks) {
         return 0;
     }
-}
-mtrx AlgdopMatrix(mtrx Mat) {
-    mtrx result;
-    result = InitZero(Mat.Column, Mat.Row);
-    for (int j = 0; j < Mat.Row; j++) {
-        for (int i = 0; i < Mat.Column; i++) {
-            mtrx minor = InitZero(Mat.Row - 1, Mat.Column - 1);
-            int k1 = 0;
-            for (int y = 0; y < Mat.Row - 1; ++y) {
+    float result;
+    if (graphs == 1) {
+        result = matr[0][0];
+    }
+    else if (graphs == 2) {
+        result = matr[0][0] * matr[1][1] - matr[0]
+        [1] * matr[1][0];
+    }
+    else {
+        for (unsigned int j = 0; j < graphs; j++) {
+            float ** minor;
+            minor = create_matr(graphs - 1, ranks - 1);
+            for (unsigned int y = 0; y < ranks - 1; ++y) {
                 int k = 0;
-                for (int x = 0; x < Mat.Column - 1; ++x) {
+                for (unsigned int x = 0; x < graphs - 1; ++x) {
+                    if (x == j) {
+                        k = 1;
+                    }
+                    minor[y][x] = matr[y + 1][x + k];
+                }
+            }
+            switch (j % 2) {
+                case 0:
+                    result += matr[0][j] * det(minor, graphs - 1, ranks - 1);
+                    break;
+                case 1:
+                    result += (-matr[0][j]) * det(minor, graphs - 1, ranks - 1);
+                    break;
+            }
+        }
+    }
+    return result;
+}
+float ** algebraic_matr(float ** matr,unsigned int graphs,unsigned int ranks) {
+    float ** result;
+    result = create_matr(graphs, ranks);
+    for (unsigned int j = 0; j < ranks; j++) {
+        for (unsigned int i = 0; i < graphs; i++) {
+            float ** minor;
+            minor = create_matr(graphs - 1, ranks - 1);
+            int k1 = 0;
+            for (unsigned int y = 0; y < ranks - 1; ++y) {
+                int k = 0;
+                for (unsigned int x = 0; x < graphs - 1; ++x) {
                     if (x == i) {
                         k = 1;
                     }
                     if (y == j) {
                         k1 = 1;
                     }
-                    minor.Matrix[y][x] = Mat.Matrix[y + k1][x + k];
+                    minor[y][x] = matr[y + k1][x + k];
                 }
             }
             switch ((j + i) % 2) {
                 case 0:
-                    result.Matrix[j][i] = det(minor);
+                    result[j][i] = det(minor, graphs - 1, ranks - 1);
                     break;
                 case 1:
-                    result.Matrix[j][i] = (-det(minor));
+                    result[j][i] = (-det(minor, graphs - 1, ranks - 1));
                     break;
             }
         }
     }
     return result;
 }
-mtrx sum(mtrx Mat1, mtrx Mat2) {
-    mtrx result;
-    result = InitZero(Mat1.Column, Mat1.Row);
-    if ((Mat1.Row == Mat2.Row) && (Mat1.Column == Mat2.Column)) {
-        for (int j = 0; j < Mat1.Row; j++) {
-            for (int i = 0; i < Mat1.Column; i++) {
-                result.Matrix[j][i] = Mat1.Matrix[j][i] + Mat2.Matrix[j][i];
-            }
-        }
-    }
-    else {
-        result.Succes = false;
-    }
-    return result;
-}
-mtrx sub(mtrx Mat1, mtrx Mat2) {
-    mtrx result;
-    result = InitZero(Mat1.Column, Mat1.Row);
-    if ((Mat1.Row == Mat2.Row) && (Mat1.Column == Mat2.Column)) {
-        for (int j = 0; j < Mat1.Row; j++) {
-            for (int i = 0; i < Mat1.Column; i++) {
-                result.Matrix[j][i] = Mat1.Matrix[j][i] - Mat2.Matrix[j][i];
-            }
-        }
-    }
-    else {
-        result.Succes = false;
-    }
-    return result;
-}
-mtrx mul(mtrx Mat1, mtrx Mat2) {
-    mtrx result;
-    result = InitZero(Mat2.Column, Mat1.Row);
-    if (Mat1.Column == Mat2.Row) {
-        for (int j = 0; j < Mat1.Row; j++) {
-            for (int i = 0; i < Mat2.Column; i++) {
-                float y = 0;
-                for (int z = 0; z < Mat1.Column; z++) {
-                    y += Mat1.Matrix[j][z] * Mat2.Matrix[z][i];
-                }
-                result.Matrix[j][i] = y;
-            }
-        }
-    }
-    else {
-        result.Succes = false;
-    }
-    return result;
-}
-mtrx Tr(mtrx Mat) {
-    mtrx result;
-    result = InitZero(Mat.Row, Mat.Column);
-    for (int j = 0; j < Mat.Column; j++) {
-        for (int i = 0; i < Mat.Row; i++) {
-            result.Matrix[j][i] = Mat.Matrix[i][j];
-        }
-    }
-    return result;
-}
-mtrx R(mtrx Mat) {
-    mtrx result;
-    if (det(Mat) != 0) {
-        result = InitZero(Mat.Row, Mat.Column);
-        mtrx A = AlgdopMatrix(Mat);
-        A = Tr(A);
-        for (int j = 0; j < Mat.Column; j++) {
-            for (int i = 0; i < Mat.Row; i++) {
-                result.Matrix[j][i] = A.Matrix[j][i] * (1 / (det(Mat)));
-            }
-        }
+float ** sum(float ** matr1,unsigned int graphs1,unsigned int ranks1,
+             float ** matr2,unsigned int graphs2,unsigned int ranks2,unsigned int & newgraphs,unsigned int & newranks) {
+    float ** result;
+    if (graphs1 != graphs2 || ranks1 != ranks2) {
+        result = nullptr;
         return result;
     }
-    else {
-        result.Succes = false;
+    result = create_matr(graphs1, ranks1);
+    for (unsigned int j = 0; j < ranks1; j++) {
+        for (unsigned int i = 0; i < graphs1; i++) {
+            result[j][i] = matr1[j][i] + matr2[j][i];
+        }
+    }
+    newgraphs = graphs1;
+    newranks = ranks1;
+    return result;
+}
+float ** sub(float ** matr1,unsigned int graphs1,unsigned int ranks1,
+             float ** matr2,unsigned int graphs2,unsigned int ranks2,unsigned int & newgraphs,unsigned int & newranks) {
+    float ** result;
+    if (graphs1 != graphs2 || ranks1 != ranks2) {
+        result = nullptr;
         return result;
     }
+    result = create_matr(graphs1, ranks1);
+    for (unsigned int j = 0; j < ranks1; j++) {
+        for (unsigned int i = 0; i < graphs1; i++) {
+            result[j][i] = matr1[j][i] + matr2[j][i];
+        }
+    }
+    newgraphs = graphs1;
+    newranks = ranks1;
+    return result;
 }
-bool getMatrix(float ** matrix, int ncolumns, int nrows) {
-    for (int j = 0; j < nrows; j++) {
-        string newrow;
-        getline(cin, newrow);
-        istringstream stream(newrow);
-        for (int i = 0; i < ncolumns; i++) {
-            if (!(stream >> matrix[j][i])) {
+float ** mul(float ** matr1,unsigned int graphs1,unsigned int ranks1,
+             float ** matr2,unsigned int graphs2,unsigned int ranks2,unsigned int & newgraphs,unsigned int & newranks) {
+    float ** result;
+    if (graphs1 != ranks2) {
+        result = nullptr;
+        return result;
+    }
+    result = create_matr(graphs2, ranks1);
+    for (unsigned int j = 0; j < ranks1; j++) {
+        for (unsigned int i = 0; i < graphs2; i++) {
+            float y = 0;
+            for (unsigned int z = 0; z < graphs1; z++) {
+                y += matr1[j][z] * matr2[z][i];
+            }
+            result[j][i] = y;
+        }
+    }
+    newgraphs = graphs2;
+    newranks = ranks1;
+    return result;
+}
+float ** transplate(float ** matr,unsigned int graphs,unsigned int ranks,unsigned int & newgraphs,unsigned int & newranks) {
+    float ** result;
+    result = create_matr(ranks, graphs);
+    for (unsigned int j = 0; j < graphs; j++) {
+        for (unsigned int i = 0; i < ranks; i++) {
+            result[j][i] = matr[i]
+            [j];
+        }
+    }
+    newgraphs = ranks;
+    newranks = graphs;
+    return result;
+}
+float ** reverse(float ** matr, unsigned int graphs,unsigned int ranks,unsigned int & newgraphs,unsigned int & newranks) {
+    float ** result;
+    if (det(matr, graphs, ranks) == 0) {
+        result = nullptr;
+        return result;
+    }
+    if (graphs == ranks && ranks == 1) {
+        result = nullptr;
+        return result;
+    }
+    result = create_matr(graphs, ranks);
+    float ** a = algebraic_matr(matr, graphs, ranks);
+    a = transplate(a, graphs, ranks, newgraphs, newranks);
+    float d = det(matr, graphs, ranks);
+    for (unsigned int j = 0; j < ranks; j++) {
+        for (unsigned int i = 0; i < graphs; i++) {
+            result[j][i] = a[j][i] / d;
+        }
+    }
+    newgraphs = graphs;
+    newranks = ranks;
+    return result;
+}
+bool get_matr(float ** & matr,unsigned int ngraphs,unsigned int nranks) {
+    matr = create_matr(ngraphs, nranks);
+    for (unsigned int j = 0; j < nranks; j++) {
+        string new_row;
+        getline(cin, new_row);
+        istringstream stream(new_row);
+        for (unsigned int i = 0; i < ngraphs; i++) {
+            if (!(stream >> matr[j][i])) {
+                destroy(matr, nranks);
                 return false;
             }
         }
     }
     return true;
 }
-void coutMatrix(mtrx Matsign) {
-    for (int j = 0; j < Matsign.Row; j++) {
-        for (int i = 0; i < Matsign.Column; i++) {
-            if (Matsign.Matrix[j][i] == -0) {
-                Matsign.Matrix[j][i] = 0;
+void cout_matr(float ** matr,unsigned int ngraphs,unsigned int nranks) {
+    for (unsigned int j = 0; j < nranks; j++) {
+        for (unsigned int i = 0; i < ngraphs; i++) {
+            if (matr[j][i] == -0) {
+                matr[j][i] = 0;
             }
-            cout << Matsign.Matrix[j][i] << "\t";
+            cout << matr[j][i] << "\t";
         }
         cout << "\n";
     }
 }
-mtrx getfullMatrix() {
-    mtrx result;
-    float ** matrix;
+bool get_size(unsigned int & graphs,unsigned int & ranks) {
     string header;
-    int rows;
-    int columns;
     char razdel;
     getline(cin, header);
     istringstream str(header);
-    if ((str >> rows) && (str >> razdel) && (str >> columns) && (razdel == ',')) {
-        matrix = new float * [rows];
-        for (int i = 0; i < rows; ++i) {
-            matrix[i] = new float[columns];
-            for (int j = 0; j < columns; ++j) {
-                matrix[i][j] = 0.0f;
-            }
-        }
-        result.Succes = getMatrix(matrix, columns, rows);
-        result.Row = rows;
-        result.Column = columns;
-        result.Matrix = matrix;
-        return result;
+    if ((str >> ranks) && (str >> razdel) && (str >> graphs) && (razdel == ',')) {
+        return true;
     }
-    result.Succes = false;
-    return result;
+    return false;
 }
 int main() {
-    mtrx Mat3sign;
-    mtrx Mat1sign;
-    mtrx Mat2sign;
-    string strop;
+    float ** matr1;
+    float ** matr2;
+    float ** matr3;
     char op;
-    Mat1sign = getfullMatrix();
-    getline(cin, strop);
-    istringstream streamop(strop);
-    streamop >> op;
-    if (Mat1sign.Succes) {
-        switch (op) {
-            case 'T':
-                Mat3sign = Tr(Mat1sign);
-                break;
-            case 'R':
-                Mat3sign = R(Mat1sign);
-                if (!Mat3sign.Succes) {
-                    cout << "There is no such matrix";
-                    exit(0);
-                }
-                break;
-            default:
-                if ((op != '+') && (op != '-') && (op != '*')) {
-                    cout << "An error ocured while reading numbers";
-                    exit(0);
-                }
-                break;
+    unsigned int graphs1, ranks1,
+    graphs2, ranks2, graphs3,
+    ranks3;
+    if (get_size(graphs1, ranks1) && get_matr(matr1, graphs1, ranks1)) {
+        string com;
+        getline(cin, com);
+        istringstream stream(com);
+        if (stream >> op) {
+            switch (op) {
+                case 'T':
+                    matr3 = transplate(matr1, graphs1, ranks1, graphs3, ranks3);
+                    break;
+                case 'R':
+                    matr3 = reverse(matr1, graphs1, ranks1, graphs3, ranks3);
+                    break;
+                default:
+                    if (op != '+' && op != '-' && op != '*') {
+                        cout << "An error has occured while reading input data.";
+                        exit(0);
+                    }
+                    break;
+            }
+            if (matr3 != nullptr && (op == 'T' || op == 'R')) {
+                cout_matr(matr3, graphs3, ranks3);
+                destroy(matr3, ranks3);
+                destroy(matr1, ranks1);
+                exit(0);
+            }
+            else if (matr3 == nullptr) {
+                cout << "There is no reverse matr.";
+                destroy(matr1, ranks1);
+                exit(0);
+            }
+        }
+        else {
+            cout << "An error has occured while reading input data.";
+            exit(0);
         }
     }
     else {
-        cout << "An error ocurred while reading numbers";
+        cout << "An error has occured while reading input data.";
         exit(0);
     }
-    if (Mat3sign.Succes) {
-        coutMatrix(Mat3sign);
-        exit(0);
-    }
-    Mat2sign = getfullMatrix();
-    if (Mat2sign.Succes) {
+    if (get_size(graphs2, ranks2) && get_matr(matr2, graphs2, ranks2)) {
         switch (op) {
             case '+':
-                Mat3sign = sum(Mat1sign, Mat2sign);
-                break;
-            case '*':
-                Mat3sign = mul(Mat1sign, Mat2sign);
-                if (!Mat3sign.Succes) {
-                    cout << "Wrong matrixes";
-                    exit(0);
-                }
+                matr3 = sum(matr1, graphs1, ranks1, matr2, graphs2, ranks2, graphs3, ranks3);
                 break;
             case '-':
-                Mat3sign = sub(Mat1sign, Mat2sign);
+                matr3 = sub(matr1, graphs1, ranks1, matr2, graphs2, ranks2, graphs3, ranks3);
                 break;
+            case '*':
+                matr3 = mul(matr1, graphs1, ranks1, matr2, graphs2, ranks2, graphs3, ranks3);
+                break;
+        }
+        if (matr3 != nullptr) {
+            cout_matr(matr3, graphs3, ranks3);
+            destroy(matr3, ranks3);
+            destroy(matr1, ranks1);
+            destroy(matr2, ranks2);
+        }
+        else if (matr3 == nullptr) {
+            cout << "Wrong matres";
+            destroy(matr2, ranks2);
+            destroy(matr1, ranks1);
+            exit(0);
         }
     }
     else {
-        cout << "An error ocurred while reading numbers";
-        exit(0);
-    }
-    if ((Mat1sign.Succes) && (Mat2sign.Succes) && (Mat3sign.Succes)) {
-        coutMatrix(Mat3sign);
-    }
-    else {
+        cout << "An error has occured while reading input data.";
         exit(0);
     }
 }
